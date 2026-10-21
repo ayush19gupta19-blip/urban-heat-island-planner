@@ -10,14 +10,25 @@ from src.pipeline import run_pipeline
 
 st.set_page_config(page_title="Urban Heat Island Cooling Planner", layout="wide")
 st.title("Urban Heat Island Cooling Planner")
-st.caption("Ahmedabad · Delhi · Kolkata · synthetic baseline pending public-data calibration")
+st.caption("Ahmedabad · Delhi · Kolkata · decision-support prototype")
 
-grid_path = Path(__file__).resolve().parents[1] / "data" / "processed" / "heat_risk_grid.csv"
-recommendations_path = grid_path.parent / "intervention_recommendations.csv"
-if not grid_path.exists() or not recommendations_path.exists():
+processed_dir = Path(__file__).resolve().parents[1] / "data" / "processed"
+synthetic_grid_path = processed_dir / "heat_risk_grid.csv"
+synthetic_recommendations_path = processed_dir / "intervention_recommendations.csv"
+real_grid_path = processed_dir / "heat_risk_grid_real.csv"
+real_recommendations_path = processed_dir / "intervention_recommendations_real.csv"
+if not synthetic_grid_path.exists() or not synthetic_recommendations_path.exists():
     run_pipeline()
 
 import pandas as pd
+
+mode = st.sidebar.selectbox("Data mode", ["Synthetic demo", "Real remote sensing"] if real_grid_path.exists() else ["Synthetic demo"])
+if mode == "Real remote sensing":
+    grid_path, recommendations_path = real_grid_path, real_recommendations_path
+    st.sidebar.success("Using NASA POWER, Landsat, and Sentinel-2 features")
+else:
+    grid_path, recommendations_path = synthetic_grid_path, synthetic_recommendations_path
+    st.sidebar.info("Run `python -m src.pipeline --mode real` to build real-data outputs")
 
 grid = pd.read_csv(grid_path)
 recommendations = pd.read_csv(recommendations_path)

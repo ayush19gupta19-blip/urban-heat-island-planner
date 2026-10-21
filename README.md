@@ -4,7 +4,7 @@ An environmental decision-support project for identifying heat-vulnerable parts 
 
 ## Current milestone
 
-This first milestone is a reproducible local MVP. It creates a city grid, derives explainable heat-risk features, ranks intervention opportunities, and serves the results through a Streamlit dashboard. The generated data layer is intentionally replaceable with Landsat/Sentinel, weather, OpenStreetMap, and census sources in the next milestone.
+This project has two reproducible modes. The default synthetic mode is a fast demo fixture. The real mode pulls NASA POWER weather and cloud-filtered Landsat/Sentinel-2 observations through public APIs/STAC, builds a common city grid, derives explainable heat-risk features, ranks intervention opportunities, and serves the results through a Streamlit dashboard.
 
 ## Product question
 
@@ -20,7 +20,15 @@ python -m src.pipeline
 streamlit run app/dashboard.py
 ```
 
-The pipeline writes a processed feature table to `data/processed/heat_risk_grid.csv` and intervention recommendations to `data/processed/intervention_recommendations.csv`.
+To build the real remote-sensing feature tables for all three cities:
+
+```bash
+python -m src.pipeline --mode real --start-date 2024-04-01 --end-date 2024-06-30 --max-cloud-cover 30
+```
+
+This downloads only the small NASA POWER response and records satellite scene metadata. Raster features are read from public cloud-optimized GeoTIFF assets; the full satellite rasters are not copied into the repository.
+
+The synthetic pipeline writes `data/processed/heat_risk_grid.csv` and `data/processed/intervention_recommendations.csv`. The real pipeline writes the corresponding `_real.csv` files and caches weather/metadata under `data/raw/`.
 
 ## Pilot cities
 
@@ -59,7 +67,11 @@ The scoring assumptions, intervention logic, calibration plan, and responsible-u
 - [x] Budget-aware intervention ranking
 - [x] Initial dashboard
 - [x] Public dataset availability confirmed for Ahmedabad, Delhi, and Kolkata
-- [ ] Ahmedabad, Delhi, and Kolkata public-data ingestion
+- [x] NASA POWER weather ingestion
+- [x] Landsat land-surface-temperature and built-up proxy ingestion
+- [x] Sentinel-2 NDVI and water-surface proxy ingestion
+- [x] Real-data feature builder with city-wide weather summaries
+- [ ] WorldPop population and municipal vulnerability layers
 - [ ] Spatial model validation against observed temperature
 - [ ] Historical trend and uncertainty analysis
 

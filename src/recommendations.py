@@ -10,6 +10,7 @@ def rank_interventions(grid: pd.DataFrame, budget: float = 1_000_000) -> pd.Data
     missing = required.difference(grid.columns)
     if missing:
         raise ValueError(f"grid is missing required columns: {sorted(missing)}")
+    city_population_max = grid.groupby("city")["population_density"].max().to_dict()
     rows: list[dict] = []
     for record in grid.to_dict("records"):
         risk = record["heat_risk_score"] / 100
@@ -20,8 +21,9 @@ def rank_interventions(grid: pd.DataFrame, budget: float = 1_000_000) -> pd.Data
             _candidate(record, "Cooling centre", cost=50000, cooling=0.8, feasibility=1 - record["water_access"]),
         ]
         for item in candidates:
+            city_max_population = max(city_population_max[record["city"]] * 0.18, 1)
             item["priority_score"] = round(
-                100 * risk * (0.65 * vulnerable_people / max(grid["population_density"].max() * 0.18, 1) + 0.35 * item["feasibility"])
+                100 * risk * (0.65 * vulnerable_people / city_max_population + 0.35 * item["feasibility"])
                 * item["cooling_reduction_c"] / item["cost"],
                 4,
             )

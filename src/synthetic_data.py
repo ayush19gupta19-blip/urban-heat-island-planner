@@ -5,9 +5,9 @@ import pandas as pd
 
 
 CITY_PROFILES = {
-    "Ahmedabad": {"lat": 23.02, "lon": 72.50, "base_temp": 31.5, "vegetation": 0.18, "population": 1800, "water": 0.75, "code": "AHM"},
-    "Delhi": {"lat": 28.61, "lon": 77.20, "base_temp": 32.0, "vegetation": 0.22, "population": 2200, "water": 0.62, "code": "DEL"},
-    "Kolkata": {"lat": 22.57, "lon": 88.36, "base_temp": 30.5, "vegetation": 0.28, "population": 2400, "water": 0.84, "code": "KOL"},
+    "Ahmedabad": {"lat": 23.02, "lon": 72.50, "base_temp": 31.5, "vegetation": 0.18, "population": 1800, "water": 0.75, "code": "AHM", "bbox": [72.42, 22.90, 72.70, 23.15]},
+    "Delhi": {"lat": 28.61, "lon": 77.20, "base_temp": 32.0, "vegetation": 0.22, "population": 2200, "water": 0.62, "code": "DEL", "bbox": [76.84, 28.40, 77.35, 28.90]},
+    "Kolkata": {"lat": 22.57, "lon": 88.36, "base_temp": 30.5, "vegetation": 0.28, "population": 2400, "water": 0.84, "code": "KOL", "bbox": [88.20, 22.40, 88.55, 22.75]},
 }
 
 
