@@ -1,6 +1,12 @@
 # Urban Heat Island Cooling Planner
 
+[![Python checks](https://github.com/ayush19gupta19-blip/urban-heat-island-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/ayush19gupta19-blip/urban-heat-island-planner/actions/workflows/ci.yml)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 An environmental decision-support project for identifying heat-vulnerable parts of Ahmedabad, Delhi, and Kolkata and prioritising cooling interventions such as tree planting, cool roofs, and cooling centres.
+
+![Streamlit dashboard — synthetic demo, Ahmedabad heat-risk map and intervention table](docs/images/dashboard.png)
 
 ## Current milestone
 
