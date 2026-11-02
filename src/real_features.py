@@ -9,6 +9,7 @@ import pandas as pd
 
 from src.ingestion.nasa_power import fetch_daily_weather
 from src.ingestion.stac_satellite import extract_city_satellite_features
+from src.ingestion.worldpop import fetch_city_population
 from src.synthetic_data import CITY_PROFILES
 
 
@@ -33,9 +34,9 @@ def build_real_city_grid(
 ) -> pd.DataFrame:
     """Build one city grid from NASA POWER, Landsat, and Sentinel-2 data.
 
-    Population, elderly share, and water access remain explicitly labelled
-    proxies until WorldPop/municipal layers are added in the next ingestion
-    milestone. Thermal, vegetation, built-up, and weather fields are real.
+    Population and age-65+ estimates come from WorldPop's 2020 1 km grids.
+    Water access remains a remote-sensing proxy. WorldPop estimates are not
+    current census counts or ward-level municipal statistics.
     """
     if city not in CITY_PROFILES:
         raise ValueError(f"Unsupported city: {city}. Choose from {sorted(CITY_PROFILES)}")
@@ -57,6 +58,13 @@ def build_real_city_grid(
 
     y, x = np.mgrid[0:rows, 0:cols]
     bbox = profile["bbox"]
+    population = fetch_city_population(
+        city,
+        bbox=bbox,
+        rows=rows,
+        cols=cols,
+        output_dir=raw_dir or Path(__file__).resolve().parents[1] / "data" / "raw",
+    )
     latitude = bbox[1] + (y + 0.5) * (bbox[3] - bbox[1]) / rows
     longitude = bbox[0] + (x + 0.5) * (bbox[2] - bbox[0]) / cols
     temperature = satellite["land_surface_temp_c"]
@@ -89,9 +97,10 @@ def build_real_city_grid(
         "weather_missing_days": int(weather["t2m"].replace(-999, np.nan).isna().sum()),
     }
 
-    # These are temporary, clearly named proxies for the recommendation layer.
-    population_density = profile["population"] + 7000 * np.nan_to_num(_normalize(built_up), nan=0.0)
-    elderly_share = np.full((rows, cols), 0.09, dtype="float32")
+    population_count = population["population_count"]
+    population_density = population["population_density"]
+    elderly_population = population["elderly_population_65_plus"]
+    elderly_share = population["elderly_share"]
     water_access = np.clip(0.25 + 0.65 * water_surface + 0.2 * (1 - built_up), 0.05, 0.95)
     risk = (
         0.42 * _normalize(temperature)
@@ -118,10 +127,15 @@ def build_real_city_grid(
             "sentinel_valid": sentinel_valid.ravel(),
             "remote_sensing_valid": remote_sensing_valid.ravel(),
             "remote_sensing_imputed": (~remote_sensing_valid).ravel(),
+            "population_count": population_count.ravel(),
             "population_density": population_density.ravel(),
-            "population_data_source": "built-up proxy; add WorldPop next",
+            "population_data_source": population["population_data_source"],
+            "population_data_year": population["population_data_year"],
+            "population_data_coverage": population["population_data_coverage"].ravel(),
+            "elderly_population_65_plus": elderly_population.ravel(),
             "elderly_share": elderly_share.ravel(),
-            "elderly_data_source": "temporary city-wide proxy",
+            "elderly_data_source": population["elderly_data_source"],
+            "elderly_data_coverage": population["elderly_data_coverage"].ravel(),
             "water_access": water_access.ravel(),
             "land_surface_temp_c": temperature.ravel(),
             "heat_risk_score": heat_risk.ravel(),

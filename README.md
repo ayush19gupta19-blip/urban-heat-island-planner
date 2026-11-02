@@ -10,7 +10,7 @@ An environmental decision-support project for identifying heat-vulnerable parts 
 
 ## Current milestone
 
-This project has two reproducible modes. The default synthetic mode is a fast demo fixture. The real mode pulls NASA POWER weather and cloud-filtered Landsat/Sentinel-2 observations through public APIs/STAC, builds a common city grid, derives explainable heat-risk features, ranks intervention opportunities, and serves the results through a Streamlit dashboard.
+This project has two reproducible modes. The default synthetic mode is a fast demo fixture. The real mode pulls NASA POWER weather and cloud-filtered Landsat/Sentinel-2 observations through public APIs/STAC, adds WorldPop 2020 population and age-65+ estimates, builds a common city grid, derives explainable heat-risk features, ranks intervention opportunities, and serves the results through a Streamlit dashboard.
 
 ## Product question
 
@@ -32,9 +32,9 @@ To build the real remote-sensing feature tables for all three cities:
 python -m src.pipeline --mode real --start-date 2024-04-01 --end-date 2024-06-30 --max-cloud-cover 30
 ```
 
-This downloads only the small NASA POWER response and records satellite scene metadata. Raster features are read from public cloud-optimized GeoTIFF assets; the full satellite rasters are not copied into the repository.
+The first real-mode run downloads and caches about 113 MB of India-wide WorldPop 2020 population and age-65+ rasters under `data/raw/worldpop/india/`. NASA POWER weather and satellite scene metadata are cached under `data/raw/`; satellite features are read from public cloud-optimized GeoTIFF assets without copying the full satellite rasters into the repository. Later runs reuse the WorldPop cache.
 
-The synthetic pipeline writes `data/processed/heat_risk_grid.csv` and `data/processed/intervention_recommendations.csv`. The real pipeline writes the corresponding `_real.csv` files and caches weather/metadata under `data/raw/`.
+The synthetic pipeline writes `data/processed/heat_risk_grid.csv` and `data/processed/intervention_recommendations.csv`. The real pipeline writes the corresponding `_real.csv` files and caches inputs under `data/raw/`. Real-mode population values are modeled 2020 estimates; the municipal ward-level Census join remains pending.
 
 ## Pilot cities
 
@@ -77,7 +77,8 @@ The scoring assumptions, intervention logic, calibration plan, and responsible-u
 - [x] Landsat land-surface-temperature and built-up proxy ingestion
 - [x] Sentinel-2 NDVI and water-surface proxy ingestion
 - [x] Real-data feature builder with city-wide weather summaries
-- [ ] WorldPop population and municipal vulnerability layers
+- [x] WorldPop 2020 population counts and age-65+ vulnerability grid
+- [ ] Municipal ward-level vulnerability join (Census ward tables and matching boundaries)
 - [ ] Spatial model validation against observed temperature
 - [ ] Historical trend and uncertainty analysis
 

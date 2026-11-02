@@ -35,6 +35,21 @@ def test_real_feature_builder_preserves_quality_flags(monkeypatch):
     monkeypatch.setattr(real_features, "fetch_daily_weather", lambda *args, **kwargs: weather)
     monkeypatch.setattr(
         real_features,
+        "fetch_city_population",
+        lambda *args, **kwargs: {
+            "population_count": np.array([[100.0, 200.0], [300.0, 400.0]]),
+            "population_density": np.array([[10.0, 20.0], [30.0, 40.0]]),
+            "elderly_population_65_plus": np.array([[10.0, 40.0], [60.0, 120.0]]),
+            "elderly_share": np.array([[0.1, 0.2], [0.2, 0.3]]),
+            "population_data_coverage": np.ones((2, 2)),
+            "elderly_data_coverage": np.ones((2, 2)),
+            "population_data_year": 2020,
+            "population_data_source": "WorldPop population test fixture",
+            "elderly_data_source": "WorldPop age test fixture",
+        },
+    )
+    monkeypatch.setattr(
+        real_features,
         "extract_city_satellite_features",
         lambda *args, **kwargs: {
             "land_surface_temp_c": np.array([[40.0, np.nan], [42.0, 41.0]], dtype="float32"),
@@ -52,4 +67,7 @@ def test_real_feature_builder_preserves_quality_flags(monkeypatch):
     assert frame["data_mode"].eq("real_weather_and_remote_sensing").all()
     assert frame["remote_sensing_imputed"].sum() == 2
     assert frame["heat_risk_score"].between(0, 100).all()
+    assert frame["population_count"].tolist() == [100.0, 200.0, 300.0, 400.0]
+    assert frame["elderly_share"].tolist() == [0.1, 0.2, 0.2, 0.3]
+    assert frame["population_data_year"].eq(2020).all()
     assert not frame[["land_surface_temp_c", "vegetation_index", "built_up_fraction"]].isna().any().any()

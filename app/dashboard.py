@@ -13,7 +13,7 @@ from src.recommendations import rank_interventions, select_budget_portfolio
 
 st.set_page_config(page_title="Urban Heat Island Cooling Planner", layout="wide")
 st.title("Urban Heat Island Cooling Planner")
-st.caption("Ahmedabad · Delhi · Kolkata · decision-support prototype")
+st.caption("Ahmedabad | Delhi | Kolkata | decision-support prototype")
 
 root = Path(__file__).resolve().parents[1]
 processed_dir = root / "data" / "processed"
@@ -30,7 +30,7 @@ mode = st.sidebar.selectbox(
 )
 if mode == "Real remote sensing":
     grid_path, recommendations_path = real_grid_path, real_recommendations_path
-    st.sidebar.success("NASA POWER weather and Landsat/Sentinel-2 features")
+    st.sidebar.success("NASA POWER, Landsat, Sentinel-2, and WorldPop 2020")
 else:
     grid_path, recommendations_path = synthetic_grid_path, synthetic_recommendations_path
     st.sidebar.info("Run `python -m src.pipeline --mode real` to build real-data outputs")
@@ -44,7 +44,8 @@ with st.expander("How to read the heat-risk score", expanded=False):
         """
         The 0–100 score is a **screening index**, not a temperature, probability, or health forecast. """
         """The current method combines normalized land-surface temperature (42%), built-up fraction (22%), """
-        """population-density proxy (18%), elderly-share proxy (10%), and limited water access (8%). """
+        """population density (18%), age-65+ share (10%), and limited water access (8%). """
+        """Synthetic mode uses generated demographic proxies; real mode uses modeled WorldPop 2020 population and age estimates. """
         """These weights and intervention effects are planning assumptions, not locally calibrated estimates. """
         """Normalization is performed within each city's grid for the selected input data, so scores should not """
         """be compared across cities or dates as if they were on a calibrated common scale. See """
@@ -73,6 +74,18 @@ if mode == "Real remote sensing":
         missing = int(grid["weather_missing_days"].iloc[0])
         st.caption(f"NASA POWER daily temperature observations: {observed} available day(s), {missing} missing day(s) in the selected period.")
 
+    if "population_count" in grid:
+        population_coverage = 100 * grid["population_data_coverage"].mean()
+        elderly_coverage = 100 * grid["elderly_data_coverage"].mean()
+        total_population = float(grid["population_count"].sum())
+        elderly_population = float(grid["elderly_population_65_plus"].sum())
+        estimated_elderly_share = elderly_population / total_population if total_population else 0
+        p1, p2, p3 = st.columns(3)
+        p1.metric("WorldPop grid coverage", f"{population_coverage:.1f}%")
+        p2.metric("Age 65+ grid coverage", f"{elderly_coverage:.1f}%")
+        p3.metric("Estimated age 65+ share", f"{estimated_elderly_share:.1%}")
+        st.caption("WorldPop population and age estimates represent 2020 at about 1 km resolution; they are modeled estimates, not current ward census counts.")
+
     metadata_path = root / "data" / "raw" / "metadata" / f"{city[:3].lower()}_satellite.json"
     if metadata_path.exists():
         try:
@@ -87,15 +100,18 @@ else:
     st.info("Synthetic demo mode: every value is generated for demonstration. Its coverage indicators are not observations of real conditions.")
 
 population_sources = grid.get("population_data_source", pd.Series("unspecified proxy", index=grid.index)).dropna().unique()
-population_label = "Population proxy in high/critical cells"
 population_note = "; ".join(map(str, population_sources))
 
 left, middle, right = st.columns(3)
 high_cells = grid["heat_risk_score"] >= 60
 left.metric("Grid cells", f"{len(grid):,}")
 middle.metric("High/Critical cells", f"{high_cells.sum():,}")
-right.metric(population_label, f"{grid.loc[high_cells, 'population_density'].sum():,.0f}")
-st.caption(f"Exposure proxy only, not a count of people. Source: {population_note}.")
+if mode == "Real remote sensing" and "population_count" in grid:
+    right.metric("Estimated population in high/critical cells", f"{grid.loc[high_cells, 'population_count'].sum():,.0f}")
+    st.caption(f"Modeled WorldPop 2020 estimate, not a current headcount. Source: {population_note}.")
+else:
+    right.metric("Population proxy in high/critical cells", f"{grid.loc[high_cells, 'population_density'].sum():,.0f}")
+    st.caption(f"Exposure proxy only, not a count of people. Source: {population_note}.")
 
 st.subheader("Heat-risk map")
 fig = px.scatter_mapbox(
@@ -129,10 +145,10 @@ estimated_sites = len(portfolio)
 mean_cooling = float(portfolio["cooling_reduction_c"].mean()) if estimated_sites and "cooling_reduction_c" in portfolio else 0
 
 m1, m2, m3 = st.columns(3)
-m1.metric("Illustrative budget used", f"₹{spent:,.0f}")
+m1.metric("Illustrative budget used (INR)", f"{spent:,.0f}")
 m2.metric("Grid cells selected", f"{estimated_sites:,}")
-m3.metric("Mean modeled cooling effect", f"{mean_cooling:.2f} °C" if estimated_sites else "—")
-st.caption(f"Unallocated: ₹{remaining:,.0f}. Cooling effects and costs are assumptions; this greedy ranking is not a validated cost-benefit model or an optimal budget solution.")
+m3.metric("Mean modeled cooling effect", f"{mean_cooling:.2f} C" if estimated_sites else "- ")
+st.caption(f"Unallocated: INR {remaining:,.0f}. Cooling effects and costs are assumptions; this greedy ranking is not a validated cost-benefit model or an optimal budget solution.")
 
 st.markdown("**Compare intervention options**")
 option_summary = candidates.groupby("intervention", as_index=False).agg(
@@ -153,8 +169,8 @@ else:
         "grid_id": "Grid cell",
         "priority_score": "Priority score",
         "cost": "Illustrative cost (INR)",
-        "cooling_reduction_c": "Modeled cooling effect (°C)",
-        "population_benefited": "Exposure proxy benefited (not people)",
+        "cooling_reduction_c": "Modeled cooling effect (C)",
+        "population_benefited": "Potential population reached (estimate)" if mode == "Real remote sensing" and "population_count" in grid else "Exposure proxy potentially reached (not people)",
         "reason": "Reason",
     }
     st.dataframe(

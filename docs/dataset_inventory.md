@@ -1,6 +1,6 @@
 # Public Dataset Inventory
 
-Status checked: 2026-10-19
+Status checked: 2026-11-03
 
 The three pilot cities are Ahmedabad, Delhi, and Kolkata. The inventory below separates **confirmed usable sources** from optional sources that still need an acquisition check. No private credentials are required for the core MVP.
 
@@ -62,15 +62,23 @@ Kolkata    22.57, 88.36
 - **Verification:** The API returned the India ADM2 metadata and download links, including a GeoJSON endpoint.
 - **Caveat:** ADM2 is a district layer, not a perfect municipal boundary. City boundaries must be validated separately using municipal or OSM boundary relations.
 
-### 6. WorldPop 2020 population counts — population exposure
+### 6. WorldPop Global2 population and age structure
 
-- **Coverage:** Global; therefore includes all three cities.
-- **Use:** Population-density and exposure estimates when city-level census rasters are unavailable.
-- **Access:** GeoTIFF download from the WorldPop data hub.
-- **Source:** <https://www.worldpop.org/geodata/summary?id=24777>
-- **Resolution:** The confirmed page is a 1 km population-count product. It is suitable for a first exposure estimate, not for fine-grained household-level analysis.
-- **License:** CC BY 4.0 with attribution.
-- **Caveat:** The 1 km product can smooth neighborhood differences. We should use a finer WorldPop product or census ward data if the final intervention recommendations require street-level precision.
+- **Coverage:** India, including the three pilot cities.
+- **Use:** 2020 population count and density, plus gridded age-65+ population count and share for an age-based vulnerability feature.
+- **Source:** [2020 population counts, India](https://hub.worldpop.org/geodata/summary?id=77674) and [2020 age/sex structures, India](https://hub.worldpop.org/geodata/summary?id=97050).
+- **Resolution:** 1 km GeoTIFFs in WGS84. Age-65+ is summed from the 65, 70, 75, 80, 85, and 90+ bands.
+- **Release and citation:** Global2 R2025A v1; population DOI [10.5258/SOTON/WP00840](https://doi.org/10.5258/SOTON/WP00840), age/sex DOI [10.5258/SOTON/WP00842](https://doi.org/10.5258/SOTON/WP00842).
+- **License:** CC BY 4.0; retain attribution and assess responsible-use constraints.
+- **Pipeline behavior:** The real pipeline caches the India-wide rasters under `data/raw/worldpop/india/` and aggregates counts to the analysis grid. The cached rasters are ignored by Git.
+- **Caveat:** These are modeled 2020 estimates, not current census counts or ward-level observations. One-kilometre cells smooth local differences and should not support individual-level decisions.
+
+### 7. Census of India Primary Census Abstract (ward tables)
+
+- **Coverage:** The official Population Finder provides 85 indicators at ward, town, sub-district, and district levels for Census 2011, including age-group population and demographic indicators.
+- **Source:** [Population Finder 2011](https://censusindia.mha.gov.in/census.website/data/population-finder).
+- **Potential use:** Ward-level vulnerability attributes after matching town/ward codes to compatible municipal ward boundaries.
+- **Status:** Source confirmed; the ward table and boundary join are not yet integrated. Census 2011 is old and ward boundaries may have changed, so this layer must show its year and matching coverage.
 
 ## City-by-city availability
 
@@ -81,8 +89,8 @@ Kolkata    22.57, 88.36
 | Sentinel-2 archive | Global coverage | Global coverage | Global coverage | Core |
 | OSM/Geofabrik India | Covered | Covered | Covered | Core |
 | geoBoundaries India | District reference | District reference | District reference | Core boundary QA |
-| WorldPop 2020 | Covered | Covered | Covered | Core exposure baseline |
-| Official census/ward demographics | Candidate | Candidate | Candidate | Optional until acquisition is verified |
+| WorldPop Global2 2020 count and age 65+ | Covered | Covered | Covered | Core gridded exposure and vulnerability |
+| Census 2011 ward demographics and matching boundaries | Candidate | Candidate | Candidate | Pending ward-code and boundary alignment |
 
 ## First real-data ingestion order
 
@@ -91,8 +99,9 @@ Kolkata    22.57, 88.36
 3. Add one cloud-filtered Landsat seasonal composite for land-surface temperature.
 4. Add Sentinel-2 NDVI/vegetation coverage.
 5. Clip OSM features and aggregate building, road, park, and water indicators to the grid.
-6. Add WorldPop population counts and calculate exposed population.
-7. Validate missingness, spatial alignment, units, and licenses before training the model.
+6. Aggregate WorldPop 2020 population and age-65+ rasters to the analysis grid.
+7. Match Census 2011 ward indicators to compatible municipal boundaries before adding ward-level attributes.
+8. Validate missingness, spatial alignment, units, age definitions, and licenses before training the model.
 
 ## Important data-quality rule
 

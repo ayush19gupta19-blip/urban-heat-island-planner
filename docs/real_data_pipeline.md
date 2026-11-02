@@ -28,7 +28,9 @@ The same module searches the public STAC for the least-cloudy Sentinel-2 item. I
 
 ## Current boundary of the real mode
 
-Population density is currently an explicit built-up-based proxy, elderly share is a temporary city-wide proxy, and water access is a surface-water/accessibility proxy. They are not presented as official demographic measurements. The next data milestone is to add WorldPop and municipal/ward layers before using the planner for real allocation decisions.
+Population count and density now come from WorldPop Global2 R2025A v1 India 2020 rasters at approximately 1 km resolution. The 65+ population count and share are aggregated from WorldPop age bands (65-69 through 90+). The first run downloads and caches roughly 113 MB under `data/raw/worldpop/india/`; subsequent runs reuse those files. These are modeled 2020 estimates, not current ward census counts. Water access remains a surface-water/accessibility proxy.
+
+Municipal ward-level vulnerability attributes are still pending. Census 2011 provides ward-level indicators, but they should only be joined after ward codes and compatible municipal boundaries are verified for each pilot city. Do not treat the current 1 km demographic grid as a ward-level measurement or use it for individual-level decisions.
 
 ## Reproducibility
 

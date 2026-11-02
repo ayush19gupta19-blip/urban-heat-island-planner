@@ -1,6 +1,6 @@
 # Methodology
 
-## Current baseline
+## Synthetic baseline
 
 The current implementation is a synthetic, deterministic prototype. It is used to validate the project workflow and dashboard before downloading large geospatial rasters and municipal data.
 
@@ -14,6 +14,14 @@ For each city, the pipeline creates a 20x20 grid and generates these features:
 - Land-surface-temperature proxy
 
 The seed is fixed so the same inputs produce the same output. This makes tests and local demonstrations reproducible.
+
+## Real-data demographic features
+
+The real pipeline uses WorldPop Global2 R2025A v1 India rasters for 2020 at approximately 1 km resolution. It aggregates population counts and age-specific counts to each analysis cell using count-preserving raster resampling. Population density is derived from the geodesic area of each analysis cell. The age-65+ feature sums the 65-69, 70-74, 75-79, 80-84, 85-89, and 90+ groups, then divides by the total population estimate in that cell.
+
+The rasters are cached in `data/raw/worldpop/india/`; they are downloaded once and are not committed to the repository. Source citations and license details are in [the dataset inventory](dataset_inventory.md).
+
+These are modeled 2020 estimates, not current census counts. The approximately 1 km source cells cannot support street- or household-level conclusions. Census 2011 ward-level indicators remain a separate pending layer until ward codes and compatible municipal boundaries are matched.
 
 ## Heat-risk score
 
@@ -49,9 +57,10 @@ The synthetic features will be replaced in stages:
 3. Compute cloud-filtered Landsat land-surface temperature.
 4. Compute Sentinel-2 vegetation and land-cover indicators.
 5. Aggregate OSM buildings, roads, parks, water, and public facilities.
-6. Add WorldPop or official demographic data.
-7. Compare predictions against independent observations or a documented reference product.
-8. Re-estimate weights and uncertainty before presenting recommendations as city evidence.
+6. Add and check WorldPop 2020 population and age-65+ estimates on the analysis grid.
+7. Match Census 2011 ward-level indicators to compatible municipal boundaries.
+8. Compare predictions against independent observations or a documented reference product.
+9. Re-estimate weights and uncertainty before presenting recommendations as city evidence.
 
 ## Responsible-use constraints
 

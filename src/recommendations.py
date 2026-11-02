@@ -27,7 +27,8 @@ def rank_interventions(grid: pd.DataFrame, budget: float = 1_000_000) -> pd.Data
                 * item["cooling_reduction_c"] / item["cost"],
                 4,
             )
-            item["population_benefited"] = round(record["population_density"] * (0.35 + 0.65 * item["feasibility"]))
+            exposure = record.get("population_count", record["population_density"])
+            item["population_benefited"] = round(exposure * (0.35 + 0.65 * item["feasibility"]))
             item["reason"] = _reason(record, item["intervention"])
             rows.append(item)
     result = pd.DataFrame(rows).sort_values("priority_score", ascending=False).reset_index(drop=True)
