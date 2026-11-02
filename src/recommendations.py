@@ -36,6 +36,40 @@ def rank_interventions(grid: pd.DataFrame, budget: float = 1_000_000) -> pd.Data
     return result
 
 
+def select_budget_portfolio(recommendations: pd.DataFrame, budget: float) -> pd.DataFrame:
+    """Greedily select affordable, highest-priority interventions, at most one per grid cell.
+
+    This is a transparent planning heuristic, not an optimal knapsack solution.
+    """
+    if budget < 0:
+        raise ValueError("budget must be non-negative")
+    required = {"city", "grid_id", "cost", "priority_score"}
+    missing = required.difference(recommendations.columns)
+    if missing:
+        raise ValueError(f"recommendations are missing required columns: {sorted(missing)}")
+    if recommendations.empty or budget == 0:
+        return recommendations.iloc[0:0].copy()
+
+    selected = []
+    spent = 0.0
+    covered_cells: set[tuple[str, str]] = set()
+    ordered = recommendations.sort_values("priority_score", ascending=False, kind="stable")
+    for _, candidate in ordered.iterrows():
+        cell = (str(candidate["city"]), str(candidate["grid_id"]))
+        cost = float(candidate["cost"])
+        if cell in covered_cells or cost <= 0 or spent + cost > budget:
+            continue
+        selected.append(candidate)
+        covered_cells.add(cell)
+        spent += cost
+    if not selected:
+        return recommendations.iloc[0:0].copy()
+    result = pd.DataFrame(selected).reset_index(drop=True)
+    result["portfolio_cumulative_cost"] = result["cost"].cumsum()
+    result["portfolio_budget"] = budget
+    return result
+
+
 def _candidate(record: dict, intervention: str, cost: int, cooling: float, feasibility: float) -> dict:
     return {
         "city": record["city"],

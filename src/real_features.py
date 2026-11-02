@@ -85,6 +85,8 @@ def build_real_city_grid(
         "wind_speed_m_s": weather["ws10m"].replace(-999, np.nan).mean(),
         "precipitation_mm": weather["prectotcorr"].replace(-999, np.nan).sum(),
         "solar_radiation_kwh_m2_day": weather["allsky_sfc_sw_dwn"].replace(-999, np.nan).mean(),
+        "weather_observation_days": int(weather["t2m"].replace(-999, np.nan).notna().sum()),
+        "weather_missing_days": int(weather["t2m"].replace(-999, np.nan).isna().sum()),
     }
 
     # These are temporary, clearly named proxies for the recommendation layer.

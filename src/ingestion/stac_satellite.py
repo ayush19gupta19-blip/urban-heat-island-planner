@@ -159,8 +159,10 @@ def extract_city_satellite_features(
             "start_date": start_date,
             "end_date": end_date,
             "landsat_item": landsat_item["id"],
+            "landsat_datetime": landsat_item.get("properties", {}).get("datetime"),
             "landsat_cloud_cover": landsat_item["properties"].get("eo:cloud_cover"),
             "sentinel_item": sentinel_item["id"],
+            "sentinel_datetime": sentinel_item.get("properties", {}).get("datetime"),
             "sentinel_cloud_cover": sentinel_item["properties"].get("eo:cloud_cover"),
         },
     }

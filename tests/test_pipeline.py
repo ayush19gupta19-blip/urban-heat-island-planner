@@ -1,6 +1,6 @@
 import pandas as pd
 
-from src.recommendations import rank_interventions
+from src.recommendations import rank_interventions, select_budget_portfolio
 from src.pipeline import run_pipeline
 from src.synthetic_data import create_city_grid
 
@@ -29,6 +29,16 @@ def test_recommendations_are_ranked_and_explainable():
     assert recommendations["priority_score"].is_monotonic_decreasing
     assert recommendations["reason"].str.len().gt(0).all()
     assert recommendations.groupby("city")["cumulative_city_cost"].max().eq(900000).all()
+
+
+def test_budget_portfolio_respects_budget_and_selects_at_most_one_option_per_cell():
+    grid = create_city_grid(rows=3, cols=3)
+    candidates = rank_interventions(grid)
+    portfolio = select_budget_portfolio(candidates, budget=120000)
+    assert portfolio["cost"].sum() <= 120000
+    assert not portfolio.duplicated(["city", "grid_id"]).any()
+    assert portfolio["priority_score"].is_monotonic_decreasing
+    assert select_budget_portfolio(candidates, budget=0).empty
 
 
 def test_pipeline_writes_all_three_cities():
