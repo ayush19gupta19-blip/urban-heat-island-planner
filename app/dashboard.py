@@ -38,26 +38,27 @@ def get_portfolio(candidates: pd.DataFrame, budget: float) -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def make_heat_map(grid: pd.DataFrame) -> object:
-    """Cache Plotly's map figure because Streamlit reruns on every control change."""
-    fig = px.scatter_map(
-        grid,
-        lat="latitude",
-        lon="longitude",
-        color="heat_risk_score",
-        size="heat_risk_score",
-        size_max=18,
-        opacity=0.82,
-        hover_name="grid_id",
-        hover_data=["risk_category", "land_surface_temp_c", "vegetation_index", "population_density"],
+    """Cache a coordinate heat grid that does not rely on remote map tiles."""
+    ordered = grid.sort_values(["row", "col"])
+    scores = ordered.pivot(index="row", columns="col", values="heat_risk_score")
+    coordinates = ordered.drop_duplicates("col").sort_values("col")
+    latitudes = ordered.drop_duplicates("row").sort_values("row")["latitude"]
+    longitudes = coordinates["longitude"]
+    fig = px.imshow(
+        scores.to_numpy(),
+        x=longitudes,
+        y=latitudes,
+        origin="lower",
+        aspect="auto",
         color_continuous_scale="RdYlBu_r",
-        zoom=10,
         height=460,
+        labels={"x": "Longitude", "y": "Latitude", "color": "Risk"},
     )
     fig.update_layout(
-        map_style="carto-positron",
         margin={"r": 0, "t": 0, "l": 0, "b": 0},
         coloraxis_colorbar={"title": "Risk", "thickness": 12},
     )
+    fig.update_traces(hovertemplate="Longitude %{x:.4f}<br>Latitude %{y:.4f}<br>Heat-risk score %{z:.1f}<extra></extra>")
     return fig
 
 
@@ -164,6 +165,7 @@ else:
 
 st.subheader("Heat-risk map")
 st.plotly_chart(make_heat_map(grid), use_container_width=True, config={"scrollZoom": False, "displayModeBar": False})
+st.caption("Grid-cell heat map with geographic coordinates. Hover over a cell for its risk score; no external map tiles are required.")
 
 st.subheader("Budget planner")
 budget = st.number_input(
@@ -216,5 +218,11 @@ else:
         hide_index=True,
     )
     spend_by_type = portfolio.groupby("intervention", as_index=False)["cost"].sum()
-    spend_fig = px.bar(spend_by_type, x="intervention", y="cost", labels={"intervention": "Intervention", "cost": "Illustrative spend (INR)"})
-    st.plotly_chart(spend_fig, use_container_width=True)
+    st.markdown("**Budget allocation**")
+    st.progress(min(spent / budget, 1.0) if budget else 0.0)
+    st.caption(f"INR {spent:,.0f} used of INR {budget:,.0f}")
+    st.dataframe(
+        spend_by_type.rename(columns={"intervention": "Intervention", "cost": "Illustrative spend (INR)"}),
+        use_container_width=True,
+        hide_index=True,
+    )
