@@ -4,8 +4,6 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
-
-from src.real_features import build_real_city_grid
 from src.recommendations import rank_interventions
 from src.synthetic_data import CITY_PROFILES, create_city_grid
 
@@ -30,6 +28,11 @@ def run_pipeline(
         grids = [create_city_grid(city=city, seed=42 + index) for index, city in enumerate(selected_cities)]
         suffix = ""
     elif mode == "real":
+        # Keep optional geospatial/STAC dependencies out of the synthetic app
+        # startup path. Streamlit Cloud can serve the demo without importing
+        # rasterio, planetary-computer, and their native dependencies.
+        from src.real_features import build_real_city_grid
+
         grids = [
             build_real_city_grid(
                 city,
