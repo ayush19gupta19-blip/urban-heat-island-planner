@@ -1,11 +1,19 @@
 """Streamlit dashboard for the local cooling planner MVP."""
 
 import json
+import sys
 from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+
+# Streamlit Cloud may launch this script with ``app/`` as the import root.
+# Add the repository root explicitly so the sibling ``src`` package resolves
+# consistently both locally and in the hosted app.
+root = Path(__file__).resolve().parents[1]
+if str(root) not in sys.path:
+    sys.path.insert(0, str(root))
 
 from src.pipeline import run_pipeline
 from src.recommendations import rank_interventions, select_budget_portfolio
@@ -15,7 +23,6 @@ st.set_page_config(page_title="Urban Heat Island Cooling Planner", layout="wide"
 st.title("Urban Heat Island Cooling Planner")
 st.caption("Ahmedabad | Delhi | Kolkata | decision-support prototype")
 
-root = Path(__file__).resolve().parents[1]
 processed_dir = root / "data" / "processed"
 synthetic_grid_path = processed_dir / "heat_risk_grid.csv"
 synthetic_recommendations_path = processed_dir / "intervention_recommendations.csv"
