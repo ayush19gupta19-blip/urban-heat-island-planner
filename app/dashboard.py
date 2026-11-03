@@ -19,6 +19,48 @@ from src.pipeline import run_pipeline
 from src.recommendations import rank_interventions, select_budget_portfolio
 
 
+@st.cache_data(show_spinner=False)
+def load_grid(path: str, modified_ns: int) -> pd.DataFrame:
+    """Read each generated grid once, and refresh the cache when it changes."""
+    return pd.read_csv(path)
+
+
+@st.cache_data(show_spinner=False)
+def get_recommendations(grid: pd.DataFrame) -> pd.DataFrame:
+    """Reuse the city ranking across Streamlit reruns and budget adjustments."""
+    return rank_interventions(grid)
+
+
+@st.cache_data(show_spinner=False)
+def get_portfolio(candidates: pd.DataFrame, budget: float) -> pd.DataFrame:
+    return select_budget_portfolio(candidates, budget)
+
+
+@st.cache_data(show_spinner=False)
+def make_heat_map(grid: pd.DataFrame) -> object:
+    """Cache Plotly's map figure because Streamlit reruns on every control change."""
+    fig = px.scatter_map(
+        grid,
+        lat="latitude",
+        lon="longitude",
+        color="heat_risk_score",
+        size="heat_risk_score",
+        size_max=18,
+        opacity=0.82,
+        hover_name="grid_id",
+        hover_data=["risk_category", "land_surface_temp_c", "vegetation_index", "population_density"],
+        color_continuous_scale="RdYlBu_r",
+        zoom=10,
+        height=460,
+    )
+    fig.update_layout(
+        map_style="carto-positron",
+        margin={"r": 0, "t": 0, "l": 0, "b": 0},
+        coloraxis_colorbar={"title": "Risk", "thickness": 12},
+    )
+    return fig
+
+
 st.set_page_config(page_title="Urban Heat Island Cooling Planner", layout="wide")
 st.title("Urban Heat Island Cooling Planner")
 st.caption("Ahmedabad | Delhi | Kolkata | decision-support prototype")
@@ -42,7 +84,7 @@ else:
     grid_path, recommendations_path = synthetic_grid_path, synthetic_recommendations_path
     st.sidebar.info("Run `python -m src.pipeline --mode real` to build real-data outputs")
 
-grid_all = pd.read_csv(grid_path)
+grid_all = load_grid(str(grid_path), grid_path.stat().st_mtime_ns)
 city = st.selectbox("City", sorted(grid_all["city"].unique()))
 grid = grid_all[grid_all["city"] == city].copy()
 
@@ -121,19 +163,7 @@ else:
     st.caption(f"Exposure proxy only, not a count of people. Source: {population_note}.")
 
 st.subheader("Heat-risk map")
-fig = px.scatter_map(
-    grid,
-    lat="latitude",
-    lon="longitude",
-    color="heat_risk_score",
-    hover_name="grid_id",
-    hover_data=["risk_category", "land_surface_temp_c", "vegetation_index", "population_density"],
-    color_continuous_scale="RdYlBu_r",
-    zoom=10,
-    height=560,
-)
-fig.update_layout(map_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(make_heat_map(grid), use_container_width=True, config={"scrollZoom": False, "displayModeBar": False})
 
 st.subheader("Budget planner")
 budget = st.number_input(
@@ -144,8 +174,8 @@ budget = st.number_input(
     step=50_000,
     help="Illustrative intervention costs are used. The planner greedily selects the highest-priority affordable option, at most one intervention per grid cell.",
 )
-candidates = rank_interventions(grid, budget=float(budget))
-portfolio = select_budget_portfolio(candidates, float(budget))
+candidates = get_recommendations(grid)
+portfolio = get_portfolio(candidates, float(budget))
 spent = float(portfolio["cost"].sum()) if not portfolio.empty else 0
 remaining = float(budget) - spent
 estimated_sites = len(portfolio)
