@@ -121,7 +121,7 @@ else:
     st.caption(f"Exposure proxy only, not a count of people. Source: {population_note}.")
 
 st.subheader("Heat-risk map")
-fig = px.scatter_mapbox(
+fig = px.scatter_map(
     grid,
     lat="latitude",
     lon="longitude",
@@ -132,7 +132,7 @@ fig = px.scatter_mapbox(
     zoom=10,
     height=560,
 )
-fig.update_layout(mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
+fig.update_layout(map_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
 st.plotly_chart(fig, use_container_width=True)
 
 st.subheader("Budget planner")
