@@ -35,13 +35,23 @@ def search_best_item(
         "collections": [collection],
         "bbox": list(bbox),
         "datetime": f"{start_date}T00:00:00Z/{end_date}T23:59:59Z",
-        "limit": 100,
+        "limit": 20,
         "query": {"eo:cloud_cover": {"lt": max_cloud_cover}},
+        "sortby": [{"field": "properties.eo:cloud_cover", "direction": "asc"}],
     }
+    own_session = session is None
     client = session or requests.Session()
-    response = client.post(STAC_SEARCH_URL, json=payload, timeout=90)
-    response.raise_for_status()
-    features = response.json().get("features", [])
+    try:
+        response = client.post(STAC_SEARCH_URL, json=payload, timeout=90)
+        if response.status_code >= 400:
+            payload.pop("sortby", None)
+            payload["limit"] = 100
+            response = client.post(STAC_SEARCH_URL, json=payload, timeout=90)
+        response.raise_for_status()
+        features = response.json().get("features", [])
+    finally:
+        if own_session:
+            client.close()
     if not features:
         raise RuntimeError(
             f"No {collection} item found for bbox={bbox}, dates={start_date}:{end_date}, "
@@ -59,7 +69,13 @@ def _read_asset_grid(
 ) -> np.ndarray:
     """Read a city window from a remote COG and downsample it to the grid."""
     signed_href = planetary_computer.sign(href)
-    with rasterio.Env(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR"):
+    with rasterio.Env(
+        GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
+        CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif,.tiff,.TIF",
+        GDAL_HTTP_MERGE_CONSECUTIVE_RANGES="YES",
+        GDAL_HTTP_MULTIPLEX="YES",
+        VSI_CACHE="TRUE",
+    ):
         with rasterio.open(signed_href) as dataset:
             if dataset.crs is None:
                 raise ValueError(f"Raster asset has no CRS: {href}")
@@ -147,9 +163,37 @@ def extract_city_satellite_features(
     """Find and process the best Landsat and Sentinel scenes for one city."""
     if city not in CITY_PROFILES:
         raise ValueError(f"Unsupported city: {city}. Choose from {sorted(CITY_PROFILES)}")
+    code = CITY_PROFILES[city]["code"].lower()
+    grid_keys = (
+        "land_surface_temp_c",
+        "ndbi",
+        "built_up_fraction",
+        "landsat_valid",
+        "vegetation_index",
+        "water_surface_fraction",
+        "sentinel_valid",
+    )
+    if metadata_dir is not None:
+        import json
+
+        cache_path = metadata_dir / f"{code}_satellite_{start_date}_{end_date}_{rows}x{cols}.npz"
+        meta_path = metadata_dir / f"{code}_satellite.json"
+        if cache_path.exists() and meta_path.exists():
+            try:
+                metadata = json.loads(meta_path.read_text(encoding="utf-8"))
+                arrays = np.load(cache_path)
+                if metadata.get("start_date") == start_date and metadata.get("end_date") == end_date:
+                    if all(key in arrays for key in grid_keys) and arrays["land_surface_temp_c"].shape == (rows, cols):
+                        result = {key: arrays[key] for key in grid_keys}
+                        result["metadata"] = metadata
+                        return result
+            except (OSError, ValueError, KeyError, json.JSONDecodeError):
+                pass
+
     bbox = tuple(CITY_PROFILES[city]["bbox"])
-    landsat_item = search_best_item("landsat-c2-l2", bbox, start_date, end_date, max_cloud_cover)
-    sentinel_item = search_best_item("sentinel-2-l2a", bbox, start_date, end_date, max_cloud_cover)
+    with requests.Session() as session:
+        landsat_item = search_best_item("landsat-c2-l2", bbox, start_date, end_date, max_cloud_cover, session)
+        sentinel_item = search_best_item("sentinel-2-l2a", bbox, start_date, end_date, max_cloud_cover, session)
     result = {
         **extract_landsat_grids(landsat_item, bbox, rows, cols),
         **extract_sentinel_grids(sentinel_item, bbox, rows, cols),
@@ -170,6 +214,10 @@ def extract_city_satellite_features(
         import json
 
         metadata_dir.mkdir(parents=True, exist_ok=True)
-        path = metadata_dir / f"{CITY_PROFILES[city]['code'].lower()}_satellite.json"
+        path = metadata_dir / f"{code}_satellite.json"
         path.write_text(json.dumps(result["metadata"], indent=2), encoding="utf-8")
+        np.savez_compressed(
+            metadata_dir / f"{code}_satellite_{start_date}_{end_date}_{rows}x{cols}.npz",
+            **{key: result[key] for key in grid_keys},
+        )
     return result

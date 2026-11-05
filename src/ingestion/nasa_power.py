@@ -45,6 +45,18 @@ def fetch_daily_weather(
         raise ValueError("start_date must be on or before end_date")
 
     profile = CITY_PROFILES[city]
+    cache_path: Path | None = None
+    if output_dir is not None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        cache_path = output_dir / f"{profile['code'].lower()}_power_{start_date}_{end_date}.csv"
+        if cache_path.exists() and cache_path.stat().st_size > 0:
+            try:
+                cached = pd.read_csv(cache_path)
+            except (OSError, ValueError):
+                cached = None
+            if cached is not None and "city" in cached.columns and "date" in cached.columns:
+                return cached
+
     params = {
         "parameters": POWER_PARAMETERS,
         "community": "SB",
@@ -55,15 +67,33 @@ def fetch_daily_weather(
         "format": "JSON",
         "time-standard": "LST",
     }
+    own_session = session is None
     client = session or requests.Session()
-    response = client.get(POWER_URL, params=params, timeout=60)
-    response.raise_for_status()
-    frame = parse_power_payload(response.json(), city)
+    last_error: Exception | None = None
+    payload = None
+    try:
+        for attempt in range(3):
+            try:
+                response = client.get(POWER_URL, params=params, timeout=60)
+                response.raise_for_status()
+                payload = response.json()
+                break
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt == 2:
+                    break
+                import time
 
-    if output_dir is not None:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        path = output_dir / f"{profile['code'].lower()}_power_{start_date}_{end_date}.csv"
-        frame.to_csv(path, index=False)
+                time.sleep(1.5 * (attempt + 1))
+    finally:
+        if own_session:
+            client.close()
+    if payload is None:
+        raise RuntimeError(f"NASA POWER fetch failed for {city}") from last_error
+
+    frame = parse_power_payload(payload, city)
+    if cache_path is not None:
+        frame.to_csv(cache_path, index=False)
     return frame
 
 
