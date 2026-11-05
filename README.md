@@ -10,7 +10,7 @@ An environmental decision-support project for identifying heat-vulnerable parts 
 
 ## Current milestone
 
-This project has two reproducible modes. The default synthetic mode is a fast demo fixture. The real mode pulls NASA POWER weather and cloud-filtered Landsat/Sentinel-2 observations through public APIs/STAC, adds WorldPop 2020 population and age-65+ estimates, builds a common city grid, derives explainable heat-risk features, ranks intervention opportunities, and serves the results through a Streamlit dashboard.
+This project has two reproducible modes. Synthetic mode is a fast demo. Real mode pulls NASA POWER weather, Landsat/Sentinel-2, WorldPop 2020 population and age-65+ estimates, optional OpenStreetMap parks/water/amenities, and geoBoundaries district labels onto a common city grid, then ranks cooling options in the dashboard.
 
 ## Product question
 
@@ -32,9 +32,15 @@ To build the real remote-sensing feature tables for all three cities:
 python -m src.pipeline --mode real --start-date 2024-04-01 --end-date 2024-06-30 --max-cloud-cover 30
 ```
 
-The first real-mode run downloads and caches about 113 MB of India-wide WorldPop 2020 population and age-65+ rasters under `data/raw/worldpop/india/`. NASA POWER weather and satellite scene metadata are cached under `data/raw/`; satellite features are read from public cloud-optimized GeoTIFF assets without copying the full satellite rasters into the repository. Later runs reuse the WorldPop cache.
+The first real-mode run downloads WorldPop rasters under `data/raw/worldpop/india/`. NASA POWER weather, satellite metadata, and downsampled satellite grids are cached under `data/raw/` and reused on later runs.
 
-The synthetic pipeline writes `data/processed/heat_risk_grid.csv` and `data/processed/intervention_recommendations.csv`. The real pipeline writes the corresponding `_real.csv` files and caches inputs under `data/raw/`. Real-mode population values are modeled 2020 estimates; the municipal ward-level Census join remains pending.
+Optional OSM and district layers:
+
+```bash
+python scripts/fetch_public_layers.py
+```
+
+The synthetic pipeline writes `data/processed/heat_risk_grid.csv` and `data/processed/intervention_recommendations.csv`. The real pipeline writes the corresponding `_real.csv` files. Population values are modeled 2020 estimates, not a current ward census.
 
 ## Pilot cities
 
@@ -53,17 +59,19 @@ Raw/provider data -> ingestion -> feature engineering -> heat-risk model
                                 geospatial grid -> intervention ranking -> dashboard
 ```
 
-## Planned data sources
+## Data currently used
 
-- Landsat/Sentinel-derived land-surface temperature and vegetation indices
-- NASA POWER or ERA5 weather data
-- OpenStreetMap buildings, roads, parks, and water bodies
-- WorldPop or official census population and vulnerability data
+- NASA POWER daily weather
+- Landsat Collection 2 land-surface temperature and built-up proxy
+- Sentinel-2 NDVI and water-surface proxy
+- WorldPop 2020 population and age 65+
+- OpenStreetMap parks, water, hospitals/clinics/community centres (local cache)
+- geoBoundaries India ADM2 district labels (local cache)
 
-The public repository will contain only openly licensed, synthetic, or aggregated data.
+The public repository contains code, documentation, and synthetic/aggregated tables only.
 
-The confirmed dataset inventory and city-by-city coverage matrix are documented in [`docs/dataset_inventory.md`](docs/dataset_inventory.md).
-The scoring assumptions, intervention logic, calibration plan, and responsible-use constraints are documented in [`docs/methodology.md`](docs/methodology.md).
+The confirmed dataset inventory is in [`docs/dataset_inventory.md`](docs/dataset_inventory.md).
+Scoring and limits are in [`docs/methodology.md`](docs/methodology.md).
 
 ## Project status
 
@@ -78,6 +86,7 @@ The scoring assumptions, intervention logic, calibration plan, and responsible-u
 - [x] Sentinel-2 NDVI and water-surface proxy ingestion
 - [x] Real-data feature builder with city-wide weather summaries
 - [x] WorldPop 2020 population counts and age-65+ vulnerability grid
+- [x] OSM cooling-layer counts and geoBoundaries district labels
 - [ ] Municipal ward-level vulnerability join (Census ward tables and matching boundaries)
 - [ ] Spatial model validation against observed temperature
 - [ ] Historical trend and uncertainty analysis

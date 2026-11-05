@@ -28,9 +28,11 @@ The same module searches the public STAC for the least-cloudy Sentinel-2 item. I
 
 ## Current boundary of the real mode
 
-Population count and density now come from WorldPop Global2 R2025A v1 India 2020 rasters at approximately 1 km resolution. The 65+ population count and share are aggregated from WorldPop age bands (65-69 through 90+). The first run downloads and caches roughly 113 MB under `data/raw/worldpop/india/`; subsequent runs reuse those files. These are modeled 2020 estimates, not current ward census counts. Water access remains a surface-water/accessibility proxy.
+Population count and density now come from WorldPop Global2 R2025A v1 India 2020 rasters at approximately 1 km resolution. The 65+ population count and share are aggregated from WorldPop age bands (65-69 through 90+). The first run downloads and caches roughly 113 MB under `data/raw/worldpop/india/`; subsequent runs reuse those files. These are modeled 2020 estimates, not current ward census counts.
 
-Municipal ward-level vulnerability attributes are still pending. Census 2011 provides ward-level indicators, but they should only be joined after ward codes and compatible municipal boundaries are verified for each pilot city. Do not treat the current 1 km demographic grid as a ward-level measurement or use it for individual-level decisions.
+OpenStreetMap park, water, and amenity counts are binned onto the same grid when `data/raw/osm/<city>_parks_water_amenities.geojson` is present. geoBoundaries ADM2 names are attached from `data/raw/boundaries/<city>_adm2.geojson`. Refresh both with `python scripts/fetch_public_layers.py`. NASA POWER CSVs and satellite `.npz` grids are read from cache on later runs.
+
+Water access is a surface-water / OSM-water proxy, not household tap access. Municipal ward-level Census 2011 joins are still pending.
 
 ## Reproducibility
 
