@@ -15,7 +15,6 @@ root = Path(__file__).resolve().parents[1]
 if str(root) not in sys.path:
     sys.path.insert(0, str(root))
 
-from src.pipeline import run_pipeline
 from src.recommendations import rank_interventions, select_budget_portfolio
 
 
@@ -72,6 +71,8 @@ synthetic_recommendations_path = processed_dir / "intervention_recommendations.c
 real_grid_path = processed_dir / "heat_risk_grid_real.csv"
 real_recommendations_path = processed_dir / "intervention_recommendations_real.csv"
 if not synthetic_grid_path.exists() or not synthetic_recommendations_path.exists():
+    from src.pipeline import run_pipeline
+
     run_pipeline()
 
 mode = st.sidebar.selectbox(
@@ -80,7 +81,7 @@ mode = st.sidebar.selectbox(
 )
 if mode == "Real remote sensing":
     grid_path, recommendations_path = real_grid_path, real_recommendations_path
-    st.sidebar.success("NASA POWER, Landsat, Sentinel-2, and WorldPop 2020")
+    st.sidebar.success("NASA POWER, Landsat, Sentinel-2, WorldPop 2020, OSM, and geoBoundaries")
 else:
     grid_path, recommendations_path = synthetic_grid_path, synthetic_recommendations_path
     st.sidebar.info("Run `python -m src.pipeline --mode real` to build real-data outputs")
@@ -135,6 +136,15 @@ if mode == "Real remote sensing":
         p2.metric("Age 65+ grid coverage", f"{elderly_coverage:.1f}%")
         p3.metric("Estimated age 65+ share", f"{estimated_elderly_share:.1%}")
         st.caption("WorldPop population and age estimates represent 2020 at about 1 km resolution; they are modeled estimates, not current ward census counts.")
+
+    if "park_feature_count" in grid:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("OSM park features in view", f"{int(grid['park_feature_count'].sum()):,}")
+        c2.metric("OSM water features in view", f"{int(grid['water_feature_count'].sum()):,}")
+        c3.metric("Hospitals / clinics / community centres", f"{int(grid['amenity_feature_count'].sum()):,}")
+        st.caption(str(grid["osm_cooling_data_source"].iloc[0]))
+    if "district_name" in grid:
+        st.caption(f"District labels: {grid['district_data_source'].iloc[0]}. Example cell: {grid['district_name'].iloc[0]}")
 
     metadata_path = root / "data" / "raw" / "metadata" / f"{city[:3].lower()}_satellite.json"
     if metadata_path.exists():

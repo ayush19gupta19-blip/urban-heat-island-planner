@@ -1,38 +1,65 @@
 """Budget-aware, explainable intervention recommendations."""
 
+import numpy as np
 import pandas as pd
 
 
 def rank_interventions(grid: pd.DataFrame, budget: float = 1_000_000) -> pd.DataFrame:
     if budget < 0:
         raise ValueError("budget must be non-negative")
-    required = {"city", "grid_id", "latitude", "longitude", "heat_risk_score", "population_density", "elderly_share", "vegetation_index", "built_up_fraction", "water_access"}
+    required = {
+        "city",
+        "grid_id",
+        "latitude",
+        "longitude",
+        "heat_risk_score",
+        "population_density",
+        "elderly_share",
+        "vegetation_index",
+        "built_up_fraction",
+        "water_access",
+    }
     missing = required.difference(grid.columns)
     if missing:
         raise ValueError(f"grid is missing required columns: {sorted(missing)}")
-    city_population_max = grid.groupby("city")["population_density"].max().to_dict()
-    rows: list[dict] = []
-    for record in grid.to_dict("records"):
-        risk = record["heat_risk_score"] / 100
-        vulnerable_people = record["population_density"] * record["elderly_share"]
-        candidates = [
-            _candidate(record, "Tree planting", cost=18000, cooling=1.4, feasibility=1 - record["vegetation_index"]),
-            _candidate(record, "Cool roofs", cost=32000, cooling=1.8, feasibility=record["built_up_fraction"]),
-            _candidate(record, "Cooling centre", cost=50000, cooling=0.8, feasibility=1 - record["water_access"]),
-        ]
-        for item in candidates:
-            city_max_population = max(city_population_max[record["city"]] * 0.18, 1)
-            item["priority_score"] = round(
-                100 * risk * (0.65 * vulnerable_people / city_max_population + 0.35 * item["feasibility"])
-                * item["cooling_reduction_c"] / item["cost"],
-                4,
-            )
-            exposure = record.get("population_count", record["population_density"])
-            item["population_benefited"] = round(exposure * (0.35 + 0.65 * item["feasibility"]))
-            item["reason"] = _reason(record, item["intervention"])
-            rows.append(item)
-    result = pd.DataFrame(rows).sort_values("priority_score", ascending=False).reset_index(drop=True)
-    result["cumulative_city_cost"] = result.groupby("city")["cost"].cumsum()
+
+    extra = ["population_count"] if "population_count" in grid.columns else []
+    base = grid.loc[:, list(required) + extra].copy()
+    city_max = np.maximum(base.groupby("city")["population_density"].transform("max").to_numpy() * 0.18, 1)
+    specs = (
+        ("Tree planting", 18000, 1.4, 1 - base["vegetation_index"].to_numpy()),
+        ("Cool roofs", 32000, 1.8, base["built_up_fraction"].to_numpy()),
+        ("Cooling centre", 50000, 0.8, 1 - base["water_access"].to_numpy()),
+    )
+    frames = []
+    for name, cost, cooling, feasibility in specs:
+        part = base.copy()
+        part["intervention"] = name
+        part["cost"] = cost
+        part["feasibility"] = np.clip(feasibility, 0.05, 1).round(3)
+        part["cooling_reduction_c"] = (cooling * (0.7 + 0.3 * part["heat_risk_score"] / 100)).round(2)
+        part["_city_max_population"] = city_max
+        frames.append(part)
+
+    result = pd.concat(frames, ignore_index=True)
+    risk = result["heat_risk_score"] / 100
+    vulnerable_people = result["population_density"] * result["elderly_share"]
+    result["priority_score"] = (
+        100
+        * risk
+        * (0.65 * vulnerable_people / result["_city_max_population"] + 0.35 * result["feasibility"])
+        * result["cooling_reduction_c"]
+        / result["cost"]
+    ).round(4)
+    exposure = result["population_count"] if "population_count" in result.columns else result["population_density"]
+    result["population_benefited"] = (exposure * (0.35 + 0.65 * result["feasibility"])).round()
+    result["reason"] = [_reason(record, record["intervention"]) for record in result.to_dict("records")]
+    result = (
+        result.drop(columns=["_city_max_population"])
+        .sort_values("priority_score", ascending=False)
+        .reset_index(drop=True)
+    )
+    result["cumulative_city_cost"] = result.groupby("city", sort=False)["cost"].cumsum()
     result["within_demo_budget"] = result["cumulative_city_cost"] <= budget
     return result
 

@@ -7,7 +7,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from src.ingestion.districts import attach_districts
 from src.ingestion.nasa_power import fetch_daily_weather
+from src.ingestion.osm_cooling import attach_osm_cooling
 from src.ingestion.stac_satellite import extract_city_satellite_features
 from src.ingestion.worldpop import fetch_city_population
 from src.synthetic_data import CITY_PROFILES
@@ -85,23 +87,43 @@ def build_real_city_grid(
     vegetation = fill_nan(vegetation)
     built_up = fill_nan(built_up)
     ndbi = fill_nan(ndbi)
+    water_surface = fill_nan(water_surface)
+
+    def weather_value(column: str, how: str) -> float:
+        series = pd.to_numeric(weather[column], errors="coerce").replace(-999, np.nan)
+        if how == "sum":
+            value = series.sum(min_count=1)
+        elif how == "max":
+            value = series.max()
+        else:
+            value = series.mean()
+        return float(value) if pd.notna(value) else float("nan")
 
     weather_summary = {
-        "weather_mean_temp_c": weather["t2m"].replace(-999, np.nan).mean(),
-        "weather_max_temp_c": weather["t2m"].replace(-999, np.nan).max(),
-        "relative_humidity_pct": weather["rh2m"].replace(-999, np.nan).mean(),
-        "wind_speed_m_s": weather["ws10m"].replace(-999, np.nan).mean(),
-        "precipitation_mm": weather["prectotcorr"].replace(-999, np.nan).sum(),
-        "solar_radiation_kwh_m2_day": weather["allsky_sfc_sw_dwn"].replace(-999, np.nan).mean(),
-        "weather_observation_days": int(weather["t2m"].replace(-999, np.nan).notna().sum()),
-        "weather_missing_days": int(weather["t2m"].replace(-999, np.nan).isna().sum()),
+        "weather_mean_temp_c": weather_value("t2m", "mean"),
+        "weather_max_temp_c": weather_value("t2m", "max"),
+        "relative_humidity_pct": weather_value("rh2m", "mean"),
+        "wind_speed_m_s": weather_value("ws10m", "mean"),
+        "precipitation_mm": weather_value("prectotcorr", "sum"),
+        "solar_radiation_kwh_m2_day": weather_value("allsky_sfc_sw_dwn", "mean"),
+        "weather_observation_days": int(pd.to_numeric(weather["t2m"], errors="coerce").replace(-999, np.nan).notna().sum()),
+        "weather_missing_days": int(pd.to_numeric(weather["t2m"], errors="coerce").replace(-999, np.nan).isna().sum()),
     }
 
     population_count = population["population_count"]
     population_density = population["population_density"]
     elderly_population = population["elderly_population_65_plus"]
     elderly_share = population["elderly_share"]
-    water_access = np.clip(0.25 + 0.65 * water_surface + 0.2 * (1 - built_up), 0.05, 0.95)
+    cooling = attach_osm_cooling(city, rows, cols, raw_dir=raw_dir)
+    districts = attach_districts(city, rows, cols, latitude, longitude, raw_dir=raw_dir)
+    park_count = np.asarray(cooling["park_feature_count"], dtype="float32")
+    water_count = np.asarray(cooling["water_feature_count"], dtype="float32")
+    amenity_count = np.asarray(cooling["amenity_feature_count"], dtype="float32")
+    water_access = np.clip(
+        0.25 + 0.55 * water_surface + 0.15 * (1 - built_up) + 0.05 * np.clip(water_count / 3.0, 0, 1),
+        0.05,
+        0.95,
+    )
     risk = (
         0.42 * _normalize(temperature)
         + 0.22 * _normalize(built_up)
@@ -136,6 +158,12 @@ def build_real_city_grid(
             "elderly_share": elderly_share.ravel(),
             "elderly_data_source": population["elderly_data_source"],
             "elderly_data_coverage": population["elderly_data_coverage"].ravel(),
+            "park_feature_count": park_count.ravel(),
+            "water_feature_count": water_count.ravel(),
+            "amenity_feature_count": amenity_count.ravel(),
+            "osm_cooling_data_source": cooling["osm_cooling_data_source"],
+            "district_name": districts["district_name"].ravel(),
+            "district_data_source": districts["district_data_source"],
             "water_access": water_access.ravel(),
             "land_surface_temp_c": temperature.ravel(),
             "heat_risk_score": heat_risk.ravel(),
