@@ -62,6 +62,8 @@ The synthetic features will be replaced in stages:
 8. Compare predictions against independent observations or a documented reference product.
 9. Re-estimate weights and uncertainty before presenting recommendations as city evidence.
 
+Land-surface temperature from Landsat is **skin** temperature. NASA POWER `T2M` is **2 m air** temperature at one city coordinate. `python -m src.validation` reports the city-level LST−air gap and the share of high/critical cells. That check does not validate the 0–100 score and never sets a validated flag. IMD 1° gridded air temperature is coarser than the 20×20 city grid and is not used as a cell-level truth layer.
+
 ## Responsible-use constraints
 
 - Do not use this prototype as a medical alert or emergency warning system.
