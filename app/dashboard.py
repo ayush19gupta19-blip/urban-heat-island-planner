@@ -15,6 +15,7 @@ root = Path(__file__).resolve().parents[1]
 if str(root) not in sys.path:
     sys.path.insert(0, str(root))
 
+from src.dashboard_data import osm_cooling_totals, population_quality
 from src.recommendations import rank_interventions, select_budget_portfolio
 
 
@@ -126,25 +127,27 @@ if mode == "Real remote sensing":
         st.caption(f"NASA POWER daily temperature observations: {observed} available day(s), {missing} missing day(s) in the selected period.")
 
     if "population_count" in grid:
-        population_coverage = 100 * grid["population_data_coverage"].mean()
-        elderly_coverage = 100 * grid["elderly_data_coverage"].mean()
-        total_population = float(grid["population_count"].sum())
-        elderly_population = float(grid["elderly_population_65_plus"].sum())
-        estimated_elderly_share = elderly_population / total_population if total_population else 0
-        p1, p2, p3 = st.columns(3)
-        p1.metric("WorldPop grid coverage", f"{population_coverage:.1f}%")
-        p2.metric("Age 65+ grid coverage", f"{elderly_coverage:.1f}%")
-        p3.metric("Estimated age 65+ share", f"{estimated_elderly_share:.1%}")
-        st.caption("WorldPop population and age estimates represent 2020 at about 1 km resolution; they are modeled estimates, not current ward census counts.")
+        stats = population_quality(grid)
+        if stats is not None:
+            p1, p2, p3 = st.columns(3)
+            p1.metric("WorldPop grid coverage", f"{100 * stats['population_coverage']:.1f}%")
+            p2.metric("Age 65+ grid coverage", f"{100 * stats['elderly_coverage']:.1f}%")
+            p3.metric("Estimated age 65+ share", f"{stats['elderly_share']:.1%}")
+            if stats["has_coverage_columns"]:
+                st.caption("WorldPop population and age estimates represent 2020 at about 1 km resolution; they are modeled estimates, not current ward census counts.")
+            else:
+                st.warning("This real-data table is missing coverage columns. Rebuild with `python -m src.pipeline --mode real` for WorldPop quality flags.")
 
-    if "park_feature_count" in grid:
+    osm = osm_cooling_totals(grid)
+    if osm is not None:
         c1, c2, c3 = st.columns(3)
-        c1.metric("OSM park features in view", f"{int(grid['park_feature_count'].sum()):,}")
-        c2.metric("OSM water features in view", f"{int(grid['water_feature_count'].sum()):,}")
-        c3.metric("Hospitals / clinics / community centres", f"{int(grid['amenity_feature_count'].sum()):,}")
-        st.caption(str(grid["osm_cooling_data_source"].iloc[0]))
+        c1.metric("OSM park features in view", f"{int(osm['park_feature_count']):,}")
+        c2.metric("OSM water features in view", f"{int(osm['water_feature_count']):,}")
+        c3.metric("Hospitals / clinics / community centres", f"{int(osm['amenity_feature_count']):,}")
+        st.caption(str(osm["source"]))
     if "district_name" in grid:
-        st.caption(f"District labels: {grid['district_data_source'].iloc[0]}. Example cell: {grid['district_name'].iloc[0]}")
+        district_source = grid["district_data_source"].iloc[0] if "district_data_source" in grid.columns else "geoBoundaries"
+        st.caption(f"District labels: {district_source}. Example cell: {grid['district_name'].iloc[0]}")
 
     metadata_path = root / "data" / "raw" / "metadata" / f"{city[:3].lower()}_satellite.json"
     if metadata_path.exists():
@@ -174,7 +177,7 @@ else:
     st.caption(f"Exposure proxy only, not a count of people. Source: {population_note}.")
 
 st.subheader("Heat-risk map")
-st.plotly_chart(make_heat_map(grid), use_container_width=True, config={"scrollZoom": False, "displayModeBar": False})
+st.plotly_chart(make_heat_map(grid), width="stretch", config={"scrollZoom": False, "displayModeBar": False})
 st.caption("Grid-cell heat map with geographic coordinates. Hover over a cell for its risk score; no external map tiles are required.")
 
 st.subheader("Budget planner")
@@ -206,7 +209,7 @@ option_summary = candidates.groupby("intervention", as_index=False).agg(
     mean_modeled_cooling_c=("cooling_reduction_c", "mean"),
     median_priority_score=("priority_score", "median"),
 )
-st.dataframe(option_summary, use_container_width=True, hide_index=True)
+st.dataframe(option_summary, width="stretch", hide_index=True)
 
 st.markdown("**Selected budget portfolio**")
 if portfolio.empty:
@@ -224,7 +227,7 @@ else:
     }
     st.dataframe(
         selected_rows[list(display_columns)].rename(columns=display_columns),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
     spend_by_type = portfolio.groupby("intervention", as_index=False)["cost"].sum()
@@ -233,6 +236,6 @@ else:
     st.caption(f"INR {spent:,.0f} used of INR {budget:,.0f}")
     st.dataframe(
         spend_by_type.rename(columns={"intervention": "Intervention", "cost": "Illustrative spend (INR)"}),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
