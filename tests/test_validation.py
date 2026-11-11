@@ -1,6 +1,18 @@
 import pandas as pd
+import pytest
 
 from src.validation import city_lst_air_gap
+
+
+def test_lst_air_gap_rejects_missing_columns():
+    grid = pd.DataFrame(
+        {
+            "city": ["Ahmedabad"],
+            "land_surface_temp_c": [48.0],
+        }
+    )
+    with pytest.raises(ValueError, match="missing required columns"):
+        city_lst_air_gap(grid)
 
 
 def test_lst_air_gap_is_never_marked_validated():
