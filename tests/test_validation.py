@@ -15,6 +15,20 @@ def test_lst_air_gap_rejects_missing_columns():
         city_lst_air_gap(grid)
 
 
+def test_lst_air_gap_empty_grid_returns_schema():
+    grid = pd.DataFrame(columns=[
+        "city", "land_surface_temp_c", "weather_mean_temp_c", "heat_risk_score"
+    ])
+
+    summary = city_lst_air_gap(grid)
+
+    assert summary.empty
+    assert list(summary.columns) == [
+        "city", "n_cells", "mean_lst_c", "air_temp_c", "lst_minus_air_c",
+        "high_critical_share", "validated", "note",
+    ]
+
+
 def test_lst_air_gap_is_never_marked_validated():
     grid = pd.DataFrame(
         {

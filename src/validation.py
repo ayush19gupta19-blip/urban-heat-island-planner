@@ -18,6 +18,14 @@ def city_lst_air_gap(grid: pd.DataFrame) -> pd.DataFrame:
     missing = REQUIRED.difference(grid.columns)
     if missing:
         raise ValueError(f"grid is missing required columns: {sorted(missing)}")
+    if grid.empty:
+        return pd.DataFrame(
+            columns=[
+                "city", "n_cells", "mean_lst_c", "air_temp_c", "lst_minus_air_c",
+                "high_critical_share", "validated", "note",
+            ]
+        )
+
     rows = []
     for city, part in grid.groupby("city", sort=True):
         lst = pd.to_numeric(part["land_surface_temp_c"], errors="coerce")
