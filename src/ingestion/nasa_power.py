@@ -24,7 +24,8 @@ def parse_power_payload(payload: dict[str, Any], city: str) -> pd.DataFrame:
 
     dates = sorted(set().union(*(values.keys() for values in parameters.values())))
     frame = pd.DataFrame({"date": pd.to_datetime(dates, format="%Y%m%d")})
-    for name, values in parameters.items():
+    for name in POWER_PARAMETERS.split(","):
+        values = parameters.get(name, {})
         frame[name.lower()] = [values.get(date) for date in dates]
     frame.insert(0, "city", city)
     frame["date"] = frame["date"].dt.strftime("%Y-%m-%d")
