@@ -18,6 +18,21 @@ def test_population_quality_handles_stale_real_csv_without_coverage():
     assert stats["population_coverage"] == 1.0
 
 
+def test_population_quality_all_null_coverage_is_zero_not_nan():
+    grid = pd.DataFrame(
+        {
+            "population_count": [100.0],
+            "population_data_coverage": [float("nan")],
+            "elderly_data_coverage": [float("nan")],
+        }
+    )
+
+    stats = population_quality(grid)
+
+    assert stats is not None
+    assert stats["population_coverage"] == 0.0
+    assert stats["elderly_coverage"] == 0.0
+
 def test_population_quality_none_without_counts():
     assert population_quality(pd.DataFrame({"heat_risk_score": [10.0]})) is None
 

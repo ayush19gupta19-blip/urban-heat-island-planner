@@ -21,16 +21,16 @@ def population_quality(grid: pd.DataFrame) -> dict[str, float] | None:
         )
     else:
         elderly_population = 0.0
-    population_coverage = (
-        float(pd.to_numeric(grid["population_data_coverage"], errors="coerce").mean())
-        if "population_data_coverage" in grid.columns
-        else 1.0
-    )
-    elderly_coverage = (
-        float(pd.to_numeric(grid["elderly_data_coverage"], errors="coerce").mean())
-        if "elderly_data_coverage" in grid.columns
-        else 1.0
-    )
+    def mean_coverage(column: str) -> float:
+        if column not in grid.columns:
+            return 1.0
+        coverage = pd.to_numeric(grid[column], errors="coerce").mean()
+        # An all-null coverage column has no measured coverage; avoid leaking
+        # NaN into dashboard metrics and formatted percentages.
+        return float(coverage) if pd.notna(coverage) else 0.0
+
+    population_coverage = mean_coverage("population_data_coverage")
+    elderly_coverage = mean_coverage("elderly_data_coverage")
     return {
         "total_population": total_population,
         "elderly_population": elderly_population,
