@@ -38,7 +38,11 @@ def city_lst_air_gap(grid: pd.DataFrame) -> pd.DataFrame:
                 "mean_lst_c": round(float(lst.mean()), 2) if lst.notna().any() else float("nan"),
                 "air_temp_c": round(float(air.mean()), 2) if air.notna().any() else float("nan"),
                 "lst_minus_air_c": round(float((lst - air).mean()), 2) if lst.notna().any() and air.notna().any() else float("nan"),
-                "high_critical_share": round(float((risk >= 60).mean()), 3),
+                "high_critical_share": (
+                    round(float((risk.dropna() >= 60).mean()), 3)
+                    if risk.notna().any()
+                    else float("nan")
+                ),
                 "validated": False,
                 "note": "LST is satellite skin temperature; air_temp_c is NASA POWER T2M at the city point",
             }

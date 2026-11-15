@@ -46,3 +46,18 @@ def test_lst_air_gap_is_never_marked_validated():
     assert ahm["air_temp_c"] == 34.0
     assert ahm["lst_minus_air_c"] == 15.0
     assert ahm["high_critical_share"] == 0.5
+
+
+def test_lst_air_gap_excludes_missing_risk_scores_from_share():
+    grid = pd.DataFrame(
+        {
+            "city": ["Ahmedabad", "Ahmedabad", "Ahmedabad"],
+            "land_surface_temp_c": [48.0, 49.0, 50.0],
+            "weather_mean_temp_c": [34.0, 34.0, 34.0],
+            "heat_risk_score": [80.0, float("nan"), 20.0],
+        }
+    )
+
+    summary = city_lst_air_gap(grid)
+
+    assert summary.loc[0, "high_critical_share"] == 0.5
