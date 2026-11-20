@@ -87,9 +87,11 @@ Scoring and limits are in [`docs/methodology.md`](docs/methodology.md).
 - [x] Real-data feature builder with city-wide weather summaries
 - [x] WorldPop 2020 population counts and age-65+ vulnerability grid
 - [x] OSM cooling-layer counts and geoBoundaries district labels
+- [x] Cooling-effect scenarios (conservative / base / optimistic) with equity coverage
+- [x] Multi-city equity gap report and portfolio stability under risk-score jitter
 - [ ] Municipal ward-level vulnerability join (Census ward tables and matching boundaries)
 - [ ] Spatial model validation against observed temperature
-- [ ] Historical trend and uncertainty analysis
+- [ ] Historical trend analysis
 
 ## Checks
 

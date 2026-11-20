@@ -17,6 +17,12 @@ if str(root) not in sys.path:
 
 from src.dashboard_data import osm_cooling_totals, population_quality
 from src.recommendations import rank_interventions, select_budget_portfolio
+from src.scenario_planning import (
+    compare_cities,
+    compare_scenarios,
+    equity_gap_report,
+    rank_weight_sensitivity,
+)
 
 
 @st.cache_data(show_spinner=False)
@@ -235,7 +241,93 @@ else:
     st.progress(min(spent / budget, 1.0) if budget else 0.0)
     st.caption(f"INR {spent:,.0f} used of INR {budget:,.0f}")
     st.dataframe(
-        spend_by_type.rename(columns={"intervention": "Intervention", "cost": "Illustrative spend (INR)"}),
+            spend_by_type.rename(columns={"intervention": "Intervention", "cost": "Illustrative spend (INR)"}),
+            width="stretch",
+            hide_index=True,
+        )
+
+    st.subheader("Cooling scenarios and equity coverage")
+    st.caption(
+        "Conservative / base / optimistic scale the modeled cooling effect and priority. "
+        "Equity coverage is the share of high-risk cells with elevated elderly share that receive an intervention. "
+        "This is a planning screen, not a calibrated impact model."
+    )
+    scenario_budget = st.number_input(
+        "Scenario comparison budget for this city (INR)",
+        min_value=0,
+        max_value=10_000_000,
+        value=int(budget),
+        step=50_000,
+        key="scenario_budget",
+    )
+    scenario_table = compare_scenarios(grid, budget=float(scenario_budget))
+    st.dataframe(
+        scenario_table.rename(
+            columns={
+                "scenario": "Scenario",
+                "scenario_factor": "Cooling factor",
+                "budget": "Budget (INR)",
+                "portfolio_cells": "Cells selected",
+                "high_risk_coverage": "High-risk coverage",
+                "equity_coverage": "Equity coverage",
+                "mean_cooling_c": "Mean cooling (C)",
+                "total_cost": "Spend (INR)",
+                "population_reached": "Population / exposure reached",
+            }
+        ),
         width="stretch",
         hide_index=True,
     )
+
+    st.markdown("**Multi-city equity gap (same per-city budget)**")
+    city_compare = compare_cities(grid_all, budget_per_city=float(scenario_budget), scenario="base")
+    gap = equity_gap_report(city_compare)
+    g1, g2, g3 = st.columns(3)
+    g1.metric("Mean equity coverage", f"{100 * gap['mean_equity_coverage']:.1f}%")
+    g2.metric("Leading city", str(gap["leading_city"] or "—"))
+    g3.metric("Lagging city", str(gap["lagging_city"] or "—"))
+    st.caption(
+        f"Equity spread across cities: {100 * gap['equity_spread']:.1f} percentage points "
+        f"(max {100 * gap['max_equity_coverage']:.1f}% − min {100 * gap['min_equity_coverage']:.1f}%)."
+    )
+    st.dataframe(
+        city_compare.rename(
+            columns={
+                "city": "City",
+                "scenario": "Scenario",
+                "budget": "Budget (INR)",
+                "high_risk_cells": "High-risk cells",
+                "high_elderly_high_risk_cells": "High-elderly high-risk cells",
+                "portfolio_cells": "Cells selected",
+                "high_risk_coverage": "High-risk coverage",
+                "equity_coverage": "Equity coverage",
+                "total_cost": "Spend (INR)",
+            }
+        ),
+        width="stretch",
+        hide_index=True,
+    )
+
+    st.markdown("**Selection stability under heat-risk score jitter**")
+    stability = rank_weight_sensitivity(grid, budget=float(scenario_budget))
+    if stability.empty:
+        st.info("No portfolio cells under this budget, so stability cannot be estimated.")
+    else:
+        stable_n = int(stability["stable"].sum())
+        st.caption(
+            f"{stable_n} of {len(stability)} selected cells stay in the portfolio across conservative / base / optimistic "
+            "risk-score jitters (0.85×, 1.0×, 1.15×)."
+        )
+        st.dataframe(
+            stability.head(40).rename(
+                columns={
+                    "city": "City",
+                    "grid_id": "Grid cell",
+                    "selection_count": "Times selected",
+                    "selection_share": "Share of runs",
+                    "stable": "Stable across jitters",
+                }
+            ),
+            width="stretch",
+            hide_index=True,
+        )

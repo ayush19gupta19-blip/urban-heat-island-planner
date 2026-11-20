@@ -70,3 +70,23 @@ Land-surface temperature from Landsat is **skin** temperature. NASA POWER `T2M` 
 - Do not infer individual characteristics from aggregated population data.
 - Preserve source attribution and license requirements.
 - Report data gaps and uncertainty alongside maps and recommendations.
+
+## Cooling scenarios and equity coverage
+
+The budget planner can re-rank candidates under three cooling-effect scenarios:
+
+| Scenario | Cooling factor |
+|----------|----------------|
+| conservative | 0.7× |
+| base | 1.0× |
+| optimistic | 1.3× |
+
+Priority scores scale with the cooling factor because the ranking formula is linear in modeled cooling effect. For each scenario the dashboard reports:
+
+- **High-risk coverage** — share of cells with heat-risk ≥ 60 that receive an intervention
+- **Equity coverage** — share of high-risk cells that also have elderly share ≥ 0.11 and receive an intervention
+- **Multi-city equity gap** — same per-city budget compared across Ahmedabad, Delhi, and Kolkata
+- **Selection stability** — cells that remain selected when heat-risk scores are jittered by 0.85× / 1.0× / 1.15×
+
+These screens are planning diagnostics. They are not calibrated impact estimates.
+
