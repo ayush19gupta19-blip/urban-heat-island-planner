@@ -90,3 +90,9 @@ Priority scores scale with the cooling factor because the ranking formula is lin
 
 These screens are planning diagnostics. They are not calibrated impact estimates.
 
+## Hotspot tail, trends, and ward screening
+
+- **Hotspot tail**: cells at or above the city heat-risk 75th percentile. Peer cooling tools plan on the hot tail, not only the city mean.
+- **Trends**: `compare_grid_periods` joins two grids on `city`+`grid_id` and reports risk/LST deltas. The dashboard demo uses a synthetic +3% stress; replace with two real pipeline runs for seasonal change.
+- **Wards**: nearest-centroid assignment from local OSM ward GeoJSON. This is a screening label, not a cadastral or Census ward join.
+

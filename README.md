@@ -89,6 +89,9 @@ Scoring and limits are in [`docs/methodology.md`](docs/methodology.md).
 - [x] OSM cooling-layer counts and geoBoundaries district labels
 - [x] Cooling-effect scenarios (conservative / base / optimistic) with equity coverage
 - [x] Multi-city equity gap report and portfolio stability under risk-score jitter
+- [x] Hotspot tail metrics (upper-quartile risk cells)
+- [x] Period-over-period heat-risk trend comparison
+- [x] Nearest-ward risk aggregate from local OSM ward centroids
 - [ ] Municipal ward-level vulnerability join (Census ward tables and matching boundaries)
 - [ ] Spatial model validation against observed temperature
 - [ ] Historical trend analysis

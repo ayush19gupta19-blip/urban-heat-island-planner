@@ -23,6 +23,9 @@ from src.scenario_planning import (
     equity_gap_report,
     rank_weight_sensitivity,
 )
+from src.hotspot_report import city_hotspot_summary
+from src.trend_analysis import city_trend_summary
+from src.ward_summary import aggregate_risk_by_ward
 
 
 @st.cache_data(show_spinner=False)
@@ -331,3 +334,37 @@ else:
             width="stretch",
             hide_index=True,
         )
+
+
+st.subheader("Hotspot tail and ward screening")
+st.caption(
+    "Hotspot cells are the upper quartile of heat-risk within the selected city. "
+    "Ward labels use nearest OSM ward centroids when a local GeoJSON cache exists — not a cadastral join."
+)
+hot_summary = city_hotspot_summary(grid, percentile=75)
+st.dataframe(hot_summary, width="stretch", hide_index=True)
+
+# Synthetic period-over-period demo: jitter risk slightly as a second "period"
+later = grid.copy()
+later["heat_risk_score"] = (later["heat_risk_score"] * 1.03).clip(0, 100).round(2)
+if "land_surface_temp_c" in later.columns:
+    later["land_surface_temp_c"] = (later["land_surface_temp_c"] + 0.25).round(2)
+trend = city_trend_summary(grid, later, period_a="baseline", period_b="plus_3pct_risk")
+st.markdown("**Illustrative trend (baseline vs +3% risk stress)**")
+st.dataframe(trend, width="stretch", hide_index=True)
+
+ward_map = {
+    "Ahmedabad": root / "data" / "raw" / "wards" / "ahm_osm_wards.geojson",
+    "Kolkata": root / "data" / "raw" / "wards" / "kol_osm_wards.geojson",
+}
+ward_path = ward_map.get(city)
+if ward_path is not None and ward_path.exists():
+    try:
+        wards = aggregate_risk_by_ward(grid, ward_path)
+        st.markdown("**Nearest-ward risk aggregate**")
+        st.dataframe(wards.head(15), width="stretch", hide_index=True)
+    except Exception as exc:
+        st.caption(f"Ward aggregate unavailable: {exc}")
+else:
+    st.caption("No local OSM ward GeoJSON for this city (Delhi cache not present in repo).")
+
