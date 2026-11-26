@@ -24,7 +24,6 @@ from src.scenario_planning import (
     rank_weight_sensitivity,
 )
 from src.hotspot_report import city_hotspot_summary
-from src.trend_analysis import city_trend_summary
 from src.ward_summary import aggregate_risk_by_ward
 
 
@@ -344,14 +343,10 @@ st.caption(
 hot_summary = city_hotspot_summary(grid, percentile=75)
 st.dataframe(hot_summary, width="stretch", hide_index=True)
 
-# Synthetic period-over-period demo: jitter risk slightly as a second "period"
-later = grid.copy()
-later["heat_risk_score"] = (later["heat_risk_score"] * 1.03).clip(0, 100).round(2)
-if "land_surface_temp_c" in later.columns:
-    later["land_surface_temp_c"] = (later["land_surface_temp_c"] + 0.25).round(2)
-trend = city_trend_summary(grid, later, period_a="baseline", period_b="plus_3pct_risk")
-st.markdown("**Illustrative trend (baseline vs +3% risk stress)**")
-st.dataframe(trend, width="stretch", hide_index=True)
+st.caption(
+    "Period trends: call `city_trend_summary` on two real pipeline grids (same city+grid_id). "
+    "No synthetic stress table is shown here."
+)
 
 ward_map = {
     "Ahmedabad": root / "data" / "raw" / "wards" / "ahm_osm_wards.geojson",
